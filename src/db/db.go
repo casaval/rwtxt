@@ -107,7 +107,8 @@ func (fs *FileSystem) initializeDB() (err error) {
 	domains (
 		id INTEGER NOT NULL PRIMARY KEY,
 		name TEXT,
-		key TEXT
+		key TEXT,
+		public INTEGER
 	);`
 	_, err = fs.db.Exec(sqlStmt)
 	if err != nil {
@@ -403,6 +404,36 @@ func (fs *FileSystem) Len() (l int, err error) {
 	if err != nil {
 		err = errors.Wrap(err, "getRows")
 	}
+	return
+}
+
+// SetDomainPublicity will set the key of a domain, throws an error if it already exists
+func (fs *FileSystem) SetDomainPublicity(domain string, publicity int) (err error) {
+	// first check if it is a domain
+	fs.Lock()
+	defer fs.Unlock()
+
+	tx, err := fs.db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "begin Save")
+	}
+
+	stmt, err := tx.Prepare(`
+	UPDATE domains SET 
+		public = ?
+	WHERE
+		name = ?
+	`)
+	if err != nil {
+		return errors.Wrap(err, "stmt Save")
+	}
+
+	_, err = stmt.Exec(publicity, domain)
+	if err != nil {
+		return errors.Wrap(err, "exec Save")
+	}
+	defer stmt.Close()
+	err = tx.Commit()
 	return
 }
 
